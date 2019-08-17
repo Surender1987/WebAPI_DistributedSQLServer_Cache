@@ -2,6 +2,9 @@
 using Microsoft.Extensions.Caching.Distributed;
 using System;
 using System.Collections.Generic;
+using System.IO;
+using System.Runtime.Serialization.Formatters.Binary;
+using System.Text;
 using System.Threading.Tasks;
 using WebAPI_DistributedSQLServer_Cache.BusinessLayer.Interfaces;
 using WebAPI_DistributedSQLServer_Cache.Models;
@@ -48,38 +51,33 @@ namespace WebAPI_DistributedSQLServer_Cache.Controllers
         [Route("")]
         public async Task<List<StudentDTO>> Get()
         {
-            if (!_memoryCache.TryGetValue(ALLSTUDENTCACHEKEY, out List<StudentDTO> studentList))
+            var students = await _memoryCache.GetAsync(ALLSTUDENTCACHEKEY);
+            
+            if (students == null)
             {
-                studentList = await _studentService.Get();
-                var memoryCacheOption = new MemoryCacheEntryOptions
+                var lstStudents = await _studentService.Get();
+                var memoryCacheOption = new DistributedCacheEntryOptions
                 {
                     SlidingExpiration = TimeSpan.FromMinutes(10)
                 };
-                _memoryCache.Set(ALLSTUDENTCACHEKEY, studentList, memoryCacheOption);
-                SetSource(ref studentList, "From Database");
-            }
-            else
-            {
-                SetSource(ref studentList, "From Cache");
-            }
-            return studentList;
-        }
 
-        /// <summary>
-        /// Get student by id
-        /// </summary>
-        /// <returns></returns>
-        [HttpGet]
-        [Route("{id}")]
-        public Task<StudentDTO> Get(int id)
-        {
-            return _memoryCache.GetOrCreate(STUDENTBYID, async entry =>
-            {
-                entry.SlidingExpiration = TimeSpan.FromMinutes(10);
-                var student = await _studentService.Get(id);
+                BinaryFormatter bf1 = new BinaryFormatter();
+                using (MemoryStream ms = new MemoryStream())
+                {
+                    bf1.Serialize(ms, lstStudents);
+                    students =  ms.ToArray();
+                }
 
-                return student;
-            });
+                await _memoryCache.SetAsync(ALLSTUDENTCACHEKEY, students, memoryCacheOption);
+                return lstStudents;
+            }
+            
+            BinaryFormatter bf = new BinaryFormatter();
+            using (MemoryStream ms = new MemoryStream(students))
+            {
+                object obj = bf.Deserialize(ms);
+                return (List<StudentDTO>)obj;
+            }
         }
 
         /// <summary>
