@@ -47,7 +47,7 @@ Once all dependencies are registered, we can inject IDistributedCached instance 
         _memoryCache = memoryCache ?? throw new ArgumentNullException(nameof(memoryCache));
     }
 
-Once i distrubuted cache instance injected to controller or class we can use provided methods to get, set remove and refresh cached data as we used in Get action of student controller with following code 
+Once distrubuted cache instance injected to controller or class we can use provided methods to get, set remove and refresh cached data as we used in Get action of student controller with following code 
 
 	/// <summary>
     /// Get all students
